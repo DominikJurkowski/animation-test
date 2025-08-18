@@ -168,6 +168,8 @@ class ImageItem {
   private resize!: () => void;
   public originalUrl = '';
   public duotoneUrl = '';
+  public duotoneTween: gsap.core.Tween | null = null;
+  public isDuotoneActive = false;
 
   constructor(DOM_el: HTMLDivElement) {
     this.DOM.el = DOM_el;
@@ -209,9 +211,6 @@ class ImageItem {
         intensity,
         noiseAmount
       );
-      if (this.DOM.inner) {
-        this.DOM.inner.style.backgroundImage = `url(${this.duotoneUrl})`;
-      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to apply duotone effect:', error);
@@ -222,6 +221,85 @@ class ImageItem {
     if (this.DOM.inner && this.originalUrl) {
       this.DOM.inner.style.backgroundImage = `url(${this.originalUrl})`;
     }
+  }
+
+  public animateDuotoneEffect(
+    duotoneUrl: string,
+    duration: number,
+    delay: number,
+    reverse = false,
+    color1: string,
+    color2: string,
+    onComplete?: () => void
+  ): void {
+    if (!this.DOM.inner) return;
+
+    // Kill any existing duotone animation
+    if (this.duotoneTween) {
+      this.duotoneTween.kill();
+    }
+
+    // Simple approach: animate opacity between original and duotone images
+    const originalImage = this.originalUrl;
+    const duotoneImage = duotoneUrl;
+
+    // Set initial state
+    if (reverse) {
+      // Start with duotone, fade to original
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this.DOM.inner!.style.backgroundImage = `url(${duotoneImage})`;
+    } else {
+      // Start with original, fade to duotone
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this.DOM.inner!.style.backgroundImage = `url(${originalImage})`;
+    }
+
+    // Create a simple crossfade animation
+    this.duotoneTween = gsap.to(this.DOM.inner, {
+      duration: duration,
+      delay: delay,
+      ease: 'power2.inOut',
+      onUpdate: () => {
+        const progress = this.duotoneTween?.progress() || 0;
+
+        if (reverse) {
+          // Fade from duotone to original
+          if (progress > 0.5) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.DOM.inner!.style.backgroundImage = `url(${originalImage})`;
+          }
+        } else {
+          // Fade from original to duotone
+          if (progress > 0.5) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.DOM.inner!.style.backgroundImage = `url(${duotoneImage})`;
+          }
+        }
+      },
+      onComplete: () => {
+        this.isDuotoneActive = !reverse;
+
+        // Set final state
+        if (!reverse) {
+          // Final state: duotone effect applied
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          this.DOM.inner!.style.backgroundImage = `url(${duotoneImage})`;
+        } else {
+          // Final state: original image
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          this.DOM.inner!.style.backgroundImage = `url(${originalImage})`;
+        }
+
+        if (onComplete) onComplete();
+      },
+    });
+  }
+
+  // Helper method to parse RGB colors
+  private parseColorToRGB(color: string): [number, number, number] | null {
+    const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (!match) return null;
+    return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
   }
 }
 
@@ -246,7 +324,14 @@ class ImageTrailDuotone {
     intensity: number;
     noiseAmount: number;
     enabled: boolean;
+    reverse: boolean;
+    duotoneDuration: number;
   };
+  private duotoneDebounceTimer: number | null = null;
+  private lastDuotoneApplication = 0;
+  private duotoneDebounceDelay = 200; // Increased debounce delay for better performance
+  private lastImageDisplay = 0;
+  private imageDisplayCooldown = 300; // 300ms cooldown between new image displays
 
   constructor(
     container: HTMLDivElement,
@@ -256,6 +341,8 @@ class ImageTrailDuotone {
       intensity: number;
       noiseAmount: number;
       enabled: boolean;
+      reverse: boolean;
+      duotoneDuration: number;
     }
   ) {
     this.container = container;
@@ -269,19 +356,19 @@ class ImageTrailDuotone {
     this.zIndexVal = 1;
     this.activeImagesCount = 0;
     this.isIdle = true;
-    this.threshold = 180; // Increased threshold to slow down image display
+    this.threshold = 200; // Increased threshold to reduce image display frequency
     this.mousePos = { x: 0, y: 0 };
     this.lastMousePos = { x: 0, y: 0 };
     this.cacheMousePos = { x: 0, y: 0 };
     this.visibleImagesCount = 0;
-    this.visibleImagesTotal = 4; // Reduced max visible images to prevent overcrowding
+    this.visibleImagesTotal = 3; // Reduced max visible images for better performance
     this.visibleImagesTotal = Math.min(
       this.visibleImagesTotal,
       this.imagesTotal - 1
     );
 
-    // Apply duotone effect to all images
-    this.applyDuotoneEffect();
+    // Prepare duotone effects for all images
+    this.prepareDuotoneEffects();
 
     const handlePointerMove = (ev: MouseEvent | TouchEvent) => {
       const rect = container.getBoundingClientRect();
@@ -302,16 +389,10 @@ class ImageTrailDuotone {
     container.addEventListener('touchmove', initRender as EventListener);
   }
 
-  private async applyDuotoneEffect() {
-    if (!this.duotoneConfig.enabled) {
-      // Reset to original images
-      this.images.forEach((img) => {
-        img.resetToOriginal();
-      });
-      return;
-    }
+  private async prepareDuotoneEffects() {
+    if (!this.duotoneConfig.enabled) return;
 
-    // Apply duotone effect to all images
+    // Prepare duotone versions of all images
     const promises = this.images.map((img) =>
       img.applyDuotone(
         this.duotoneConfig.color1,
@@ -325,7 +406,7 @@ class ImageTrailDuotone {
       await Promise.all(promises);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Failed to apply duotone effects:', error);
+      console.error('Failed to prepare duotone effects:', error);
     }
   }
 
@@ -335,9 +416,19 @@ class ImageTrailDuotone {
     intensity: number;
     noiseAmount: number;
     enabled: boolean;
+    reverse: boolean;
+    duotoneDuration: number;
   }) {
     this.duotoneConfig = config;
-    await this.applyDuotoneEffect();
+    await this.prepareDuotoneEffects();
+  }
+
+  public destroy() {
+    // Clean up debounce timer
+    if (this.duotoneDebounceTimer) {
+      clearTimeout(this.duotoneDebounceTimer);
+      this.duotoneDebounceTimer = null;
+    }
   }
 
   private render() {
@@ -345,13 +436,74 @@ class ImageTrailDuotone {
     this.cacheMousePos.x = lerp(this.cacheMousePos.x, this.mousePos.x, 0.3);
     this.cacheMousePos.y = lerp(this.cacheMousePos.y, this.mousePos.y, 0.3);
 
-    if (distance > this.threshold) {
+    const now = Date.now();
+
+    // Check cooldown before showing new image
+    if (
+      distance > this.threshold &&
+      now - this.lastImageDisplay > this.imageDisplayCooldown
+    ) {
       this.showNextImage();
       this.lastMousePos = { ...this.mousePos };
+      this.lastImageDisplay = now;
     }
+
     if (this.isIdle && this.zIndexVal !== 1) this.zIndexVal = 1;
 
     requestAnimationFrame(() => this.render());
+  }
+
+  private applyDuotoneToSingleAgingImage() {
+    if (!this.duotoneConfig.enabled || this.visibleImagesCount <= 1) return;
+
+    const now = Date.now();
+
+    // Check if enough time has passed since last duotone application
+    if (now - this.lastDuotoneApplication < this.duotoneDebounceDelay) {
+      // Clear existing timer and set a new one
+      if (this.duotoneDebounceTimer) {
+        clearTimeout(this.duotoneDebounceTimer);
+      }
+
+      this.duotoneDebounceTimer = window.setTimeout(() => {
+        this.applyDuotoneToSingleAgingImage();
+      }, this.duotoneDebounceDelay);
+
+      return;
+    }
+
+    // Clear any existing timer
+    if (this.duotoneDebounceTimer) {
+      clearTimeout(this.duotoneDebounceTimer);
+      this.duotoneDebounceTimer = null;
+    }
+
+    // Find the oldest visible image (excluding the newest one) that doesn't have duotone applied
+    let targetImage: ImageItem | null = null;
+    for (let i = 1; i < this.visibleImagesTotal; i++) {
+      const index = getNewPosition(this.imgPosition, i, this.images);
+      if (index !== this.imgPosition) {
+        const img = this.images[index];
+        if (!img.isDuotoneActive && img.duotoneUrl) {
+          targetImage = img;
+          break; // Only apply to one image at a time
+        }
+      }
+    }
+
+    // Apply duotone effect to only one aging image
+    if (targetImage) {
+      targetImage.animateDuotoneEffect(
+        targetImage.duotoneUrl,
+        this.duotoneConfig.duotoneDuration,
+        0, // No delay for immediate effect
+        false, // Not reverse - applying duotone
+        this.duotoneConfig.color1,
+        this.duotoneConfig.color2
+      );
+    }
+
+    this.lastDuotoneApplication = now;
   }
 
   private showNextImage() {
@@ -371,6 +523,9 @@ class ImageTrailDuotone {
       sizeVariants[Math.floor(Math.random() * sizeVariants.length)];
     const scaleValue = 1; // Keep scale at 1 since we're using actual dimensions
 
+    // Apply duotone effect to a single aging image with debounce
+    this.applyDuotoneToSingleAgingImage();
+
     gsap
       .timeline({
         onStart: () => this.onImageActivated(),
@@ -389,7 +544,7 @@ class ImageTrailDuotone {
           y: this.cacheMousePos.y - selectedVariant.height / 2,
         },
         {
-          duration: 0.8, // Even slower animation duration
+          duration: 0.8, // Animation duration
           ease: 'power3',
           scale: scaleValue,
           rotationZ: gsap.utils.random(-2, 2), // Reduced rotation for less distortion
@@ -406,12 +561,26 @@ class ImageTrailDuotone {
         this.images
       );
       const oldImg = this.images[lastInQueue];
+
+      // Simply fade out the oldest image (it already has duotone effect applied)
       gsap.to(oldImg.DOM.el, {
-        duration: 0.8, // Slower fade out animation
+        duration: 0.8, // Fade out animation
         ease: 'power4',
         opacity: 0,
         scale: 1.3,
         onComplete: () => {
+          // Reset duotone effect when fade out completes
+          if (oldImg.isDuotoneActive) {
+            oldImg.animateDuotoneEffect(
+              oldImg.duotoneUrl,
+              this.duotoneConfig.duotoneDuration * 0.5, // Faster reset
+              0,
+              true, // Reverse - remove duotone effect
+              this.duotoneConfig.color1,
+              this.duotoneConfig.color2
+            );
+          }
+
           if (this.activeImagesCount === 0) {
             this.isIdle = true;
           }
@@ -437,6 +606,8 @@ interface ImageTrailDuotoneProps {
   duotoneIntensity?: number;
   duotoneNoiseAmount?: number;
   duotoneEnabled?: boolean;
+  duotoneReverse?: boolean;
+  duotoneDuration?: number;
 }
 
 export default function ImageTrailDuotoneComponent({
@@ -446,6 +617,8 @@ export default function ImageTrailDuotoneComponent({
   duotoneIntensity = 1,
   duotoneNoiseAmount = 0.1,
   duotoneEnabled = true,
+  duotoneReverse = false,
+  duotoneDuration = 0.6,
 }: ImageTrailDuotoneProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ImageTrailDuotone | null>(null);
@@ -459,6 +632,8 @@ export default function ImageTrailDuotoneComponent({
       intensity: duotoneIntensity,
       noiseAmount: duotoneNoiseAmount,
       enabled: duotoneEnabled,
+      reverse: duotoneReverse,
+      duotoneDuration: duotoneDuration,
     };
 
     instanceRef.current = new ImageTrailDuotone(
@@ -474,6 +649,8 @@ export default function ImageTrailDuotoneComponent({
     duotoneIntensity,
     duotoneNoiseAmount,
     duotoneEnabled,
+    duotoneReverse,
+    duotoneDuration,
   ]);
 
   // Update duotone effect when props change
@@ -485,6 +662,8 @@ export default function ImageTrailDuotoneComponent({
         intensity: duotoneIntensity,
         noiseAmount: duotoneNoiseAmount,
         enabled: duotoneEnabled,
+        reverse: duotoneReverse,
+        duotoneDuration: duotoneDuration,
       });
     }
   }, [
@@ -493,7 +672,18 @@ export default function ImageTrailDuotoneComponent({
     duotoneIntensity,
     duotoneNoiseAmount,
     duotoneEnabled,
+    duotoneReverse,
+    duotoneDuration,
   ]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (instanceRef.current) {
+        instanceRef.current.destroy();
+      }
+    };
+  }, []);
 
   return (
     <div
