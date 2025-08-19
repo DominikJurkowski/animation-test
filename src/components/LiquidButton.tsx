@@ -63,7 +63,12 @@ const LiquidButton: React.FC<LiquidButtonProps> = ({
     const tentacleLength = 15; // Shorter tentacles closer to button
     const borderOffset = 2; // 2px from button border
 
-    const tentacles = [];
+    const tentacles: {
+      points: string;
+      color: string;
+      opacity: number;
+      filter: string;
+    }[] = [];
     const colors = ['#FE3ED8', '#F6C2A4', '#F8FEC1', '#FFFFFF'];
 
     // Create tentacles at different positions around the button
