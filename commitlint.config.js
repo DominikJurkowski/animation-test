@@ -12,7 +12,7 @@ module.exports = {
         'docs',
         'chore',
         'style',
-        'refactor',
+        'ref',
         'ci',
         'test',
         'perf',
