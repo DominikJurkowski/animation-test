@@ -176,6 +176,7 @@ class ImageItem {
   public duotoneTween: gsap.core.Tween | null = null;
   public isDuotoneActive = false;
   public duotoneProgress = 0;
+  public isVisible = false;
 
   constructor(DOM_el: HTMLDivElement) {
     this.DOM.el = DOM_el;
@@ -249,24 +250,24 @@ class ImageItem {
   }
 
   public resetToOriginal(): void {
+    // Kill any ongoing duotone animation
+    if (this.duotoneTween) {
+      this.duotoneTween.kill();
+      this.duotoneTween = null;
+    }
+
     if (this.DOM.overlay) {
       this.DOM.overlay.style.opacity = '0';
       this.DOM.overlay.style.backgroundImage = `url(${this.originalUrl})`;
+      this.DOM.overlay.style.filter = '';
     }
+
     this.duotoneProgress = 0;
     this.isDuotoneActive = false;
   }
 
-  public animateDuotoneEffect(
-    duration: number,
-    delay: number,
-    color1: string,
-    color2: string,
-    intensity: number,
-    noiseAmount: number,
-    onComplete?: () => void
-  ): void {
-    if (!this.DOM.inner || !this.DOM.overlay) return;
+  public animateDuotoneEffect(duration: number, delay: number): void {
+    if (!this.DOM.inner || !this.DOM.overlay || !this.isVisible) return;
 
     // Kill any existing duotone animation
     if (this.duotoneTween) {
@@ -286,6 +287,14 @@ class ImageItem {
       delay: delay,
       ease: 'power2.inOut',
       onUpdate: () => {
+        // Stop animation if image is no longer visible
+        if (!this.isVisible) {
+          if (this.duotoneTween) {
+            this.duotoneTween.kill();
+          }
+          return;
+        }
+
         if (this.DOM.overlay) {
           // Update overlay opacity for smooth transition
           this.DOM.overlay.style.opacity = this.duotoneProgress.toString();
@@ -311,7 +320,6 @@ class ImageItem {
       },
       onComplete: () => {
         this.isDuotoneActive = true;
-        if (onComplete) onComplete();
       },
     });
   }
@@ -454,6 +462,14 @@ class ImageTrailDuotoneTransition {
     this.images.forEach((img) => img.destroy());
   }
 
+  private cancelPendingDuotoneApplications() {
+    // Clear any pending duotone application timer
+    if (this.duotoneDebounceTimer) {
+      clearTimeout(this.duotoneDebounceTimer);
+      this.duotoneDebounceTimer = null;
+    }
+  }
+
   private render() {
     const distance = getMouseDistance(this.mousePos, this.lastMousePos);
     this.cacheMousePos.x = lerp(this.cacheMousePos.x, this.mousePos.x, 0.3);
@@ -507,7 +523,8 @@ class ImageTrailDuotoneTransition {
       const index = getNewPosition(this.imgPosition, i, this.images);
       if (index !== this.imgPosition) {
         const img = this.images[index];
-        if (!img.isDuotoneActive && img.duotoneUrl) {
+        // Check if image is still visible and hasn't been marked for removal
+        if (!img.isDuotoneActive && img.duotoneUrl && img.isVisible) {
           targetImage = img;
           break; // Only apply to one image at a time
         }
@@ -523,11 +540,11 @@ class ImageTrailDuotoneTransition {
 
       targetImage.animateDuotoneEffect(
         this.duotoneConfig.duotoneDuration,
-        0, // No delay for immediate effect
-        this.duotoneConfig.color1,
-        this.duotoneConfig.color2,
-        this.duotoneConfig.intensity,
-        this.duotoneConfig.noiseAmount
+        0 // No delay for immediate effect
+        // this.duotoneConfig.color1,
+        // this.duotoneConfig.color2,
+        // this.duotoneConfig.intensity,
+        // this.duotoneConfig.noiseAmount
       );
     }
 
@@ -540,6 +557,10 @@ class ImageTrailDuotoneTransition {
       this.imgPosition < this.imagesTotal - 1 ? this.imgPosition + 1 : 0;
     const img = this.images[this.imgPosition];
     ++this.visibleImagesCount;
+
+    // Mark new image as visible and reset its state
+    img.isVisible = true;
+    img.resetToOriginal(); // Ensure it starts clean
 
     gsap.killTweensOf(img.DOM.el);
     // Randomize between 2 size variants
@@ -590,12 +611,22 @@ class ImageTrailDuotoneTransition {
       );
       const oldImg = this.images[lastInQueue];
 
+      // Mark image as not visible immediately to prevent duotone application
+      oldImg.isVisible = false;
+
+      // Kill any pending duotone animation
+      if (oldImg.duotoneTween) {
+        oldImg.duotoneTween.kill();
+      }
+
+      // Cancel any pending duotone applications that might target this image
+      this.cancelPendingDuotoneApplications();
+
       // Simply fade out the oldest image (it already has duotone effect applied)
       gsap.to(oldImg.DOM.el, {
         duration: 0.8, // Fade out animation
         ease: 'power4',
         opacity: 0,
-        scale: 1.3,
         onComplete: () => {
           // Reset duotone effect when fade out completes
           if (oldImg.isDuotoneActive) {
