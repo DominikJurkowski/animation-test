@@ -245,6 +245,7 @@ class ImageItem {
         noiseAmount
       );
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to apply duotone effect:', error);
     }
   }
@@ -435,6 +436,7 @@ class ImageTrailDuotoneTransition {
     try {
       await Promise.all(promises);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to prepare duotone effects:', error);
     }
   }
