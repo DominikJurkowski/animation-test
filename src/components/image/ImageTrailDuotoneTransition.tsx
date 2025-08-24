@@ -260,7 +260,6 @@ class ImageItem {
   public animateDuotoneEffect(
     duration: number,
     delay: number,
-    reverse = false,
     color1: string,
     color2: string,
     intensity: number,
@@ -275,8 +274,8 @@ class ImageItem {
     }
 
     // Set initial progress
-    const startProgress = reverse ? 1 : 0;
-    const endProgress = reverse ? 0 : 1;
+    const startProgress = 0;
+    const endProgress = 1;
 
     this.duotoneProgress = startProgress;
 
@@ -290,10 +289,54 @@ class ImageItem {
         if (this.DOM.overlay) {
           // Update overlay opacity for smooth transition
           this.DOM.overlay.style.opacity = this.duotoneProgress.toString();
+
+          // Create smoother, more gradual blur effect
+          // Use easing functions to make blur more gradual
+          const blurEase = Math.pow(this.duotoneProgress, 1.5); // Ease in for forward
+
+          const blurAmount = blurEase * 4; // Increased max blur for forward
+
+          // Create noise/grain effect using contrast and brightness
+          // Make noise more subtle and gradual
+          const noisePhase = this.duotoneProgress * Math.PI * 1.5; // Slower oscillation
+          const noiseIntensity = Math.sin(noisePhase) * 0.08; // Reduced intensity
+          const contrastAmount = 100 + noiseIntensity * 20; // Reduced contrast variation
+          const brightnessAmount = 100 + Math.sin(noisePhase * 0.3) * 5; // Reduced brightness variation
+
+          // Add very subtle hue rotation for color distortion
+          const hueRotation = this.duotoneProgress * 2; // Reduced hue shift
+
+          // Combine all effects with smoother transitions
+          const filterEffects = [
+            `blur(${blurAmount}px)`,
+            `contrast(${contrastAmount}%)`,
+            `brightness(${brightnessAmount}%)`,
+            `hue-rotate(${hueRotation}deg)`,
+            `saturate(${100 + this.duotoneProgress * 15}%)`, // Reduced saturation increase
+          ];
+
+          this.DOM.overlay.style.filter = filterEffects.join(' ');
+
+          // Add very subtle scale and rotation for more dynamic effect
+          const scaleAmount = 1 + this.duotoneProgress * 0.015; // Reduced scale effect
+          const rotationAmount = this.duotoneProgress * 0.2; // Reduced rotation
+          this.DOM.overlay.style.transform = `scale(${scaleAmount}) rotate(${rotationAmount}deg)`;
+
+          // Add very subtle position shift for distortion effect
+          const shiftX = Math.sin(this.duotoneProgress * Math.PI) * 1; // Reduced shift
+          const shiftY = Math.cos(this.duotoneProgress * Math.PI) * 1; // Reduced shift
+          this.DOM.overlay.style.transform += ` translate(${shiftX}px, ${shiftY}px)`;
         }
       },
       onComplete: () => {
-        this.isDuotoneActive = !reverse;
+        this.isDuotoneActive = true;
+
+        // Reset overlay effects when complete
+        if (this.DOM.overlay) {
+          this.DOM.overlay.style.filter = '';
+          this.DOM.overlay.style.transform = '';
+        }
+
         if (onComplete) onComplete();
       },
     });
@@ -331,7 +374,6 @@ class ImageTrailDuotoneTransition {
     intensity: number;
     noiseAmount: number;
     enabled: boolean;
-    reverse: boolean;
     duotoneDuration: number;
   };
   private duotoneDebounceTimer: number | null = null;
@@ -348,7 +390,6 @@ class ImageTrailDuotoneTransition {
       intensity: number;
       noiseAmount: number;
       enabled: boolean;
-      reverse: boolean;
       duotoneDuration: number;
     }
   ) {
@@ -422,7 +463,6 @@ class ImageTrailDuotoneTransition {
     intensity: number;
     noiseAmount: number;
     enabled: boolean;
-    reverse: boolean;
     duotoneDuration: number;
   }) {
     this.duotoneConfig = config;
@@ -510,7 +550,6 @@ class ImageTrailDuotoneTransition {
       targetImage.animateDuotoneEffect(
         this.duotoneConfig.duotoneDuration,
         0, // No delay for immediate effect
-        false, // Not reverse - applying duotone
         this.duotoneConfig.color1,
         this.duotoneConfig.color2,
         this.duotoneConfig.intensity,
@@ -586,15 +625,7 @@ class ImageTrailDuotoneTransition {
         onComplete: () => {
           // Reset duotone effect when fade out completes
           if (oldImg.isDuotoneActive) {
-            oldImg.animateDuotoneEffect(
-              this.duotoneConfig.duotoneDuration,
-              0,
-              true, // Reverse - remove duotone effect
-              this.duotoneConfig.color1,
-              this.duotoneConfig.color2,
-              this.duotoneConfig.intensity,
-              this.duotoneConfig.noiseAmount
-            );
+            oldImg.resetToOriginal();
           }
 
           if (this.activeImagesCount === 0) {
@@ -622,7 +653,6 @@ interface ImageTrailDuotoneProps {
   duotoneIntensity?: number;
   duotoneNoiseAmount?: number;
   duotoneEnabled?: boolean;
-  duotoneReverse?: boolean;
   duotoneDuration?: number;
 }
 
@@ -633,7 +663,6 @@ export default function ImageTrailDuotoneTransitionComponent({
   duotoneIntensity = 1,
   duotoneNoiseAmount = 0.1,
   duotoneEnabled = true,
-  duotoneReverse = false,
   duotoneDuration = 2.0,
 }: ImageTrailDuotoneProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -648,7 +677,6 @@ export default function ImageTrailDuotoneTransitionComponent({
       intensity: duotoneIntensity,
       noiseAmount: duotoneNoiseAmount,
       enabled: duotoneEnabled,
-      reverse: duotoneReverse,
       duotoneDuration: duotoneDuration,
     };
 
@@ -665,7 +693,6 @@ export default function ImageTrailDuotoneTransitionComponent({
     duotoneIntensity,
     duotoneNoiseAmount,
     duotoneEnabled,
-    duotoneReverse,
     duotoneDuration,
   ]);
 
@@ -678,7 +705,6 @@ export default function ImageTrailDuotoneTransitionComponent({
         intensity: duotoneIntensity,
         noiseAmount: duotoneNoiseAmount,
         enabled: duotoneEnabled,
-        reverse: duotoneReverse,
         duotoneDuration: duotoneDuration,
       });
     }
@@ -688,7 +714,6 @@ export default function ImageTrailDuotoneTransitionComponent({
     duotoneIntensity,
     duotoneNoiseAmount,
     duotoneEnabled,
-    duotoneReverse,
     duotoneDuration,
   ]);
 
