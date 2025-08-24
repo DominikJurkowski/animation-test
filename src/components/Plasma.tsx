@@ -205,6 +205,7 @@ export const Plasma: React.FC<PlasmaProps> = ({
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!mouseInteractive) return;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const rect = containerRef.current!.getBoundingClientRect();
       mousePos.current.x = e.clientX - rect.left;
       mousePos.current.y = e.clientY - rect.top;
@@ -218,6 +219,7 @@ export const Plasma: React.FC<PlasmaProps> = ({
     }
 
     const setSize = () => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const rect = containerRef.current!.getBoundingClientRect();
       const width = Math.max(1, Math.floor(rect.width));
       const height = Math.max(1, Math.floor(rect.height));
@@ -238,10 +240,10 @@ export const Plasma: React.FC<PlasmaProps> = ({
 
       if (direction === 'pingpong') {
         const cycle = Math.sin(timeValue * 0.5) * directionMultiplier;
-        (program.uniforms.uDirection as any).value = cycle;
+        program.uniforms.uDirection.value = cycle;
       }
 
-      (program.uniforms.iTime as any).value = timeValue;
+      program.uniforms.iTime.value = timeValue;
       renderer.render({ scene: mesh });
       raf = requestAnimationFrame(loop);
     };
@@ -254,8 +256,10 @@ export const Plasma: React.FC<PlasmaProps> = ({
         containerRef.current.removeEventListener('mousemove', handleMouseMove);
       }
       try {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         containerRef.current?.removeChild(canvas);
       } catch {
+        // eslint-disable-next-line no-console
         console.error('Error removing canvas');
       }
     };
