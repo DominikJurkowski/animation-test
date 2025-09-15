@@ -10,7 +10,7 @@ export default function HorizontalTextColorNoisePage() {
           <HorizontalTextColorNoiseReveal
             className='text-4xl font-bold text-black mb-4 block'
             trigger='mount'
-            delay={0.5}
+            delay={2.0}
             duration={1.2}
             stagger={0.08}
           >
@@ -19,14 +19,59 @@ export default function HorizontalTextColorNoisePage() {
           <HorizontalTextColorNoiseReveal
             className='text-lg text-black max-w-2xl mx-auto block'
             trigger='mount'
-            delay={1.8}
+            delay={3.5}
             duration={1.0}
             stagger={0.06}
           >
-            Smooth color transitions with 4-color sequence. Each letter reveals
-            with a beautiful yellow to orange to pink to black color sequence
-            that follows the blur reveal closely.
+            Aggressive, dirty reveal with intense blur effects. Each letter
+            starts heavily distorted with enhanced brightness, contrast, and
+            saturation, then reveals through yellow, orange, and pink (with
+            additional blur) before clearing to black.
           </HorizontalTextColorNoiseReveal>
+        </div>
+
+        {/* Mount Examples with Different States */}
+        <div className='space-y-20'>
+          {/* Example that clears to normal state */}
+          <div className='text-center'>
+            <HorizontalTextColorNoiseReveal
+              className='text-2xl font-semibold text-black'
+              trigger='mount'
+              delay={5.5}
+              duration={1.0}
+              stagger={0.05}
+              blurAmount={8}
+              stayDirty={false}
+            >
+              Normal Clear State
+            </HorizontalTextColorNoiseReveal>
+            <p className='text-sm text-gray-600 mt-4 max-w-2xl mx-auto'>
+              This example loads on mount and transitions to the clean, clear
+              state (default behavior). Compare this with the dirty state above
+              to see the difference.
+            </p>
+          </div>
+
+          {/* Example that reveals and stays revealed (no reset) */}
+          <div className='text-center'>
+            <HorizontalTextColorNoiseReveal
+              className='text-2xl font-bold text-black'
+              trigger='mount'
+              delay={6.5}
+              duration={1.5}
+              stagger={0.08}
+              blurAmount={12}
+              stayDirty={false}
+            >
+              Revealed Forever
+            </HorizontalTextColorNoiseReveal>
+            <p className='text-sm text-gray-600 mt-4 max-w-2xl mx-auto'>
+              This example reveals the text with the full color sequence and
+              blur effect, then stays in the final clean state forever. No
+              reset, no re-animation. The text remains readable and static after
+              the reveal completes.
+            </p>
+          </div>
         </div>
 
         {/* Scroll-triggered Examples */}
@@ -36,6 +81,7 @@ export default function HorizontalTextColorNoisePage() {
             <HorizontalTextColorNoiseReveal
               className='text-3xl font-bold text-black'
               trigger='intersection'
+              delay={1.5}
               duration={1.0}
               stagger={0.08}
             >
@@ -48,6 +94,7 @@ export default function HorizontalTextColorNoisePage() {
             <HorizontalTextColorNoiseReveal
               className='text-2xl font-semibold text-black'
               trigger='intersection'
+              delay={2.0}
               duration={1.2}
               stagger={0.1}
               blurAmount={15}
@@ -257,12 +304,12 @@ export default function HorizontalTextColorNoisePage() {
                 (#F1BC5C) → Pink (#FE59BA) → Black (original)
               </li>
               <li>
-                • <strong>Smooth transitions:</strong> Each color transition
-                happens at 25% intervals
+                • <strong>Aggressive dirty effects:</strong> Enhanced brightness
+                (0.8), contrast (1.5x), and saturation (2x)
               </li>
               <li>
-                • Each letter reveals with color sequence that follows blur
-                reveal closely
+                • Yellow (heavily blurred) → Orange (blur clearing) → Pink (with
+                2px blur) → Black (clear)
               </li>
               <li>• Optimized for performance with GPU acceleration</li>
               <li>• Respects reduced motion preferences</li>

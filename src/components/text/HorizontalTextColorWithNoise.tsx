@@ -23,6 +23,8 @@ interface HorizontalTextColorNoiseRevealProps {
   // Intersection observer options
   threshold?: number;
   rootMargin?: string;
+  // State options
+  stayDirty?: boolean; // Keep the dirty, blurred state instead of clearing
 }
 
 const HorizontalTextColorNoiseReveal: React.FC<
@@ -42,6 +44,7 @@ const HorizontalTextColorNoiseReveal: React.FC<
   delay = 0,
   threshold = 0.1,
   rootMargin = '0px 0px -50px 0px',
+  stayDirty = false,
 }) => {
   const textRef = useRef<HTMLSpanElement>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -63,7 +66,7 @@ const HorizontalTextColorNoiseReveal: React.FC<
           key={`${children.length}-${index}-${letter}`}
           className='inline-block'
           style={{
-            filter: `blur(${blurAmount}px)`,
+            filter: `blur(${blurAmount}px) brightness(0.8) contrast(1.5) saturate(2)`,
             opacity: 0,
             transform: 'translateX(-20px)',
             color: '#F3F69A', // Start with yellow color
@@ -84,6 +87,9 @@ const HorizontalTextColorNoiseReveal: React.FC<
   // Clean and optimized animation function with color transitions
   const animateText = useCallback(() => {
     if (!textRef.current || isAnimating || hasAnimated) return;
+
+    // For mount triggers, ensure we never animate again
+    if (trigger === 'mount' && hasAnimated) return;
 
     // Handle reduced motion
     if (reduceMotion || prefersReducedMotion) {
@@ -127,9 +133,13 @@ const HorizontalTextColorNoiseReveal: React.FC<
       },
     });
 
-    // Main reveal animation (original horizontal reveal)
+    // Main reveal animation with colors tightly coupled to blur intensity
     tl.to(letterElements, {
-      filter: 'blur(0px)',
+      filter: stayDirty
+        ? `blur(${
+            blurAmount * 0.3
+          }px) brightness(0.8) contrast(1.5) saturate(2)`
+        : 'blur(0px) brightness(1) contrast(1) saturate(1)',
       opacity: 1,
       x: 0,
       duration: duration,
@@ -140,46 +150,52 @@ const HorizontalTextColorNoiseReveal: React.FC<
         transformOrigin: 'center center',
       }),
     })
-      // Color sequence: yellow → orange → pink → black (happening simultaneously with reveal)
+      // Color sequence tightly coupled to blur reveal - colors change as blur clears
       .to(
         letterElements,
         {
-          color: '#F3F69A', // Yellow
-          duration: duration * 0.25,
+          color: '#F3F69A', // Yellow - starts when blur is heaviest
+          duration: duration * 0.4,
           stagger: stagger,
           ease: 'power2.out',
         },
-        0 // Start at the same time as main animation
+        0 // Start immediately with blur
       )
       .to(
         letterElements,
         {
-          color: '#F1BC5C', // Orange
-          duration: duration * 0.25,
+          color: '#F1BC5C', // Orange - as blur starts clearing
+          duration: duration * 0.3,
           stagger: stagger,
           ease: 'power2.out',
         },
-        duration * 0.25 // Start after 25% of main animation
+        duration * 0.2 // Start when blur is 80% of original
       )
       .to(
         letterElements,
         {
-          color: '#FE59BA', // Pink
-          duration: duration * 0.25,
+          color: '#FE59BA', // Pink - as blur clears more
+          filter: 'blur(2px)', // Add blur to pink for dirty effect
+          duration: duration * 0.2,
           stagger: stagger,
           ease: 'power2.out',
         },
-        duration * 0.5 // Start after 50% of main animation
+        duration * 0.5 // Start when blur is 50% of original
       )
       .to(
         letterElements,
         {
-          color: 'inherit', // Original text color (black)
-          duration: duration * 0.25,
+          color: stayDirty ? '#FE59BA' : 'inherit', // Stay pink if dirty, otherwise black
+          filter: stayDirty
+            ? `blur(${
+                blurAmount * 0.3
+              }px) brightness(0.8) contrast(1.5) saturate(2)`
+            : 'blur(0px)', // Keep dirty state or clear blur
+          duration: duration * 0.3,
           stagger: stagger,
           ease: 'power2.out',
         },
-        duration * 0.75 // Start after 75% of main animation
+        duration * 0.7 // Start when blur is 30% of original
       );
   }, [
     textRef,
@@ -192,6 +208,7 @@ const HorizontalTextColorNoiseReveal: React.FC<
     onComplete,
     useGPUAcceleration,
     delay,
+    stayDirty,
   ]);
 
   // Reset animation state
@@ -200,7 +217,7 @@ const HorizontalTextColorNoiseReveal: React.FC<
 
     const letterElements = textRef.current.children;
     gsap.set(letterElements, {
-      filter: `blur(${blurAmount}px)`,
+      filter: `blur(${blurAmount}px) brightness(0.8) contrast(1.5) saturate(2)`,
       opacity: 0,
       x: -20,
       color: '#F3F69A', // Reset to yellow
@@ -252,7 +269,10 @@ const HorizontalTextColorNoiseReveal: React.FC<
   useEffect(() => {
     if (!textRef.current) return;
 
-    resetAnimation();
+    // Only reset animation for non-mount triggers to prevent looping
+    if (trigger !== 'mount') {
+      resetAnimation();
+    }
 
     if (trigger === 'mount') {
       animateText();
@@ -280,8 +300,8 @@ const HorizontalTextColorNoiseReveal: React.FC<
     <span
       ref={textRef}
       className={textClasses}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={trigger === 'hover' ? handleMouseEnter : undefined}
+      onMouseLeave={trigger === 'hover' ? handleMouseLeave : undefined}
       style={{
         // Performance optimizations
         backfaceVisibility: 'hidden',
