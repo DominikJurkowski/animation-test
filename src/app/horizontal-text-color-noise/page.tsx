@@ -23,10 +23,7 @@ export default function HorizontalTextColorNoisePage() {
             duration={1.0}
             stagger={0.06}
           >
-            Aggressive, dirty reveal with intense blur effects. Each letter
-            starts heavily distorted with enhanced brightness, contrast, and
-            saturation, then reveals through yellow, orange, and pink (with
-            additional blur) before clearing to black.
+            Text with Gradient Noise Effect
           </HorizontalTextColorNoiseReveal>
         </div>
 
@@ -55,9 +52,9 @@ export default function HorizontalTextColorNoisePage() {
           {/* Example that reveals and stays revealed (no reset) */}
           <div className='text-center'>
             <HorizontalTextColorNoiseReveal
-              className='text-2xl font-bold text-black'
+              className='text-7xl font-bold text-black'
               trigger='mount'
-              delay={6.5}
+              delay={3.5}
               duration={1.5}
               stagger={0.08}
               blurAmount={12}
@@ -247,9 +244,9 @@ export default function HorizontalTextColorNoisePage() {
           </div>
 
           {/* Color Showcase */}
-          <div className='bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 rounded-lg p-8 shadow-lg'>
+          <div className='rounded-lg p-8 shadow-lg'>
             <h3 className='text-xl font-semibold mb-6 text-gray-800 text-center'>
-              Color Gradient Showcase
+              Showcase
             </h3>
             <div className='space-y-6'>
               <div className='text-center'>
@@ -275,45 +272,6 @@ export default function HorizontalTextColorNoisePage() {
                 </HorizontalTextColorNoiseReveal>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className='mt-20 text-center'>
-          <div className='bg-blue-50 border border-blue-200 rounded-lg p-6'>
-            <h4 className='text-lg font-semibold text-blue-900 mb-2'>
-              How the Gradient Noise Effect Works
-            </h4>
-            <ul className='text-blue-800 space-y-1 text-sm text-left max-w-2xl mx-auto'>
-              <li>
-                • <strong>Intersection:</strong> Animates when text comes into
-                view (default)
-              </li>
-              <li>
-                • <strong>Hover:</strong> Animates when you hover over the text
-              </li>
-              <li>
-                • <strong>Mount:</strong> Animates immediately when component
-                loads
-              </li>
-              <li>
-                • Text animates from left to right with blur and slide effects
-              </li>
-              <li>
-                • <strong>4-Color sequence:</strong> Yellow (#F3F69A) → Orange
-                (#F1BC5C) → Pink (#FE59BA) → Black (original)
-              </li>
-              <li>
-                • <strong>Aggressive dirty effects:</strong> Enhanced brightness
-                (0.8), contrast (1.5x), and saturation (2x)
-              </li>
-              <li>
-                • Yellow (heavily blurred) → Orange (blur clearing) → Pink (with
-                2px blur) → Black (clear)
-              </li>
-              <li>• Optimized for performance with GPU acceleration</li>
-              <li>• Respects reduced motion preferences</li>
-            </ul>
           </div>
         </div>
       </div>
