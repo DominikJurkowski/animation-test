@@ -224,6 +224,15 @@ export default function HomePage() {
               </h3>
               <p className='text-gray-600'>Waving lines animation</p>
             </a>
+            <a
+              href='/horizontal-text-color-noise'
+              className='block p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors'
+            >
+              <h3 className='text-lg font-semibold text-gray-900 mb-2'>
+                Text Reveal Gradient
+              </h3>
+              <p className='text-gray-600'>Text Reveal Gradient</p>
+            </a>
           </div>
         </div>
       </section>
